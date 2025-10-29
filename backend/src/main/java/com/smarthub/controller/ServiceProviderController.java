@@ -26,6 +26,7 @@ public class ServiceProviderController {
         return ResponseEntity.ok(serviceProviderService.getProfile(id));
     }
     
+    
     @PutMapping("/profile/{id}")
     public ResponseEntity<ServiceProvider> updateProfile(
         @PathVariable Integer id, 
@@ -45,5 +46,9 @@ public class ServiceProviderController {
     @GetMapping("/reviews/{id}")
     public ResponseEntity<List<Review>> getReviews(@PathVariable Integer id) {
         return ResponseEntity.ok(reviewRepository.findByProviderId(id));
+    }
+     @GetMapping("/reviews/{providerId}")
+    public ResponseEntity<?> getProviderReviews(@PathVariable Integer providerId) {
+        return ResponseEntity.ok(serviceProviderService.getProviderReviews(providerId));
     }
 }

@@ -1,4 +1,4 @@
-package com.smarthub.config;
+package com.smarthub.exception;
 
 import com.smarthub.exception.ResourceNotFoundException;
 import org.springframework.dao.DataIntegrityViolationException;

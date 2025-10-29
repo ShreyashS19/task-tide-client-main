@@ -43,4 +43,9 @@ public class ServiceProviderService {
         }
         return serviceProviderRepository.findAll();
     }
+
+    public Object getProviderReviews(Integer providerId) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'getProviderReviews'");
+    }
 }
