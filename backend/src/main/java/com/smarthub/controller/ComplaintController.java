@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/complaints")
-@CrossOrigin(origins = "http://localhost:3000")
+// ✅ REMOVED: @CrossOrigin - using global CORS config
 public class ComplaintController {
     
     @Autowired

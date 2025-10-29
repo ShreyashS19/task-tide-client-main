@@ -13,7 +13,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/bookings")
-@CrossOrigin(origins = "http://localhost:3000")
+// ✅ REMOVED: @CrossOrigin - using global CORS config
 public class BookingController {
     
     @Autowired
@@ -42,5 +42,11 @@ public class BookingController {
         return ResponseEntity.ok(
             bookingService.updateBookingStatus(bookingId, request.get("status"))
         );
+    }
+    
+    // ✅ Added: Get all bookings (for admin)
+    @GetMapping
+    public ResponseEntity<List<Booking>> getAllBookings() {
+        return ResponseEntity.ok(bookingService.getAllBookings());
     }
 }

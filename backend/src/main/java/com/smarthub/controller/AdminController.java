@@ -14,7 +14,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/admin")
-@CrossOrigin(origins = "http://localhost:3000")
+// ✅ REMOVED: @CrossOrigin - using global CORS config
 public class AdminController {
     
     @Autowired

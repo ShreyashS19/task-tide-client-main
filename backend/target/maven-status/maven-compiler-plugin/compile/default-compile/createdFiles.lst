@@ -23,6 +23,7 @@ com\smarthub\SmartServiceHubApplication.class
 com\smarthub\service\AdminService.class
 com\smarthub\service\UserService.class
 com\smarthub\entity\Booking$BookingStatus.class
+com\smarthub\exception\GlobalExceptionHandler.class
 com\smarthub\service\AuthService$1.class
 com\smarthub\validation\EmailValidator.class
 com\smarthub\exception\ResourceNotFoundException.class
@@ -39,7 +40,6 @@ com\smarthub\controller\ReviewController.class
 com\smarthub\repository\ComplaintRepository.class
 com\smarthub\validation\PasswordValidator.class
 com\smarthub\service\BookingService.class
-com\smarthub\config\GlobalExceptionHandler.class
 com\smarthub\dto\SignupRequest.class
 com\smarthub\dto\LoginRequest.class
 com\smarthub\entity\Complaint$ComplaintStatus.class
