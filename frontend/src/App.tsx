@@ -10,6 +10,12 @@ import UserDashboard from "./pages/UserDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import NotFound from "./pages/NotFound";
 
+// Admin subpages
+import ManageUsers from "./pages/admin/ManageUsers";
+import ManageProviders from "./pages/admin/ManageProviders";
+import BookingsOverview from "./pages/admin/BookingsOverview";
+import ComplaintsList from "./pages/admin/ComplaintsList";
+
 // Provider pages
 import ProfileDashboard from "./pages/provider/ProfileDashboard";
 import MyServices from "./pages/provider/MyServices";
@@ -30,13 +36,16 @@ const App = () => (
           <Route path="/login" element={<Login />} />
           <Route path="/user-dashboard/*" element={<UserDashboard />} />
           <Route path="/admin-dashboard" element={<AdminDashboard />} />
-          
+          {/* Admin sub-routes for dynamic data */}
+          <Route path="/admin-dashboard/users" element={<ManageUsers />} />
+          <Route path="/admin-dashboard/providers" element={<ManageProviders />} />
+          <Route path="/admin-dashboard/bookings" element={<BookingsOverview />} />
+          <Route path="/admin-dashboard/complaints" element={<ComplaintsList />} />
           {/* Provider Dashboard Routes */}
           <Route path="/provider-dashboard" element={<ProfileDashboard />} />
           <Route path="/provider-dashboard/services" element={<MyServices />} />
           <Route path="/provider-dashboard/bookings" element={<BookingRequests />} />
           <Route path="/provider-dashboard/reviews" element={<ProviderReviews />} />
-          
           {/* Catch-all 404 */}
           <Route path="*" element={<NotFound />} />
         </Routes>
