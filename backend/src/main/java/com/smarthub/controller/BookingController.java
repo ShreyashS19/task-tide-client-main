@@ -13,7 +13,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/bookings")
-// ✅ REMOVED: @CrossOrigin - using global CORS config
+
 public class BookingController {
     
     @Autowired
