@@ -21,6 +21,7 @@ const UserDashboard = () => {
       title="User Dashboard"
       menuItems={menuItems}
       currentPath={location.pathname}
+      userType="USER"
     >
       <Routes>
         <Route path="/" element={<Profile />} />

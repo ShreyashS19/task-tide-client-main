@@ -32,7 +32,12 @@ export default function ProfileDashboard() {
   const { toast } = useToast();
 
   const session: Session | null = useMemo(() => {
-    try { const raw = localStorage.getItem("userData"); return raw ? JSON.parse(raw) : null; } catch { return null; }
+    try { 
+      const raw = localStorage.getItem("userData"); 
+      return raw ? JSON.parse(raw) : null; 
+    } catch { 
+      return null; 
+    }
   }, []);
 
   const providerId = session?.id;
@@ -54,27 +59,45 @@ export default function ProfileDashboard() {
       setLoading(true);
 
       const [pRes, bRes] = await Promise.all([
-        fetch(`${BACKEND_BASE}/api/provider/profile/${providerId}`, { headers: { Accept: "application/json" }, mode: "cors" }),
-        fetch(`${BACKEND_BASE}/api/bookings/provider/${providerId}`, { headers: { Accept: "application/json" }, mode: "cors" }),
+        fetch(`${BACKEND_BASE}/api/provider/profile/${providerId}`, { 
+          headers: { Accept: "application/json" }, 
+          mode: "cors" 
+        }),
+        fetch(`${BACKEND_BASE}/api/bookings/provider/${providerId}`, { 
+          headers: { Accept: "application/json" }, 
+          mode: "cors" 
+        }),
       ]);
 
       if (pRes.ok) setProvider(await pRes.json());
       if (bRes.ok) setBookings(await bRes.json());
     } catch (e: any) {
-      toast({ title: "Error", description: e?.message || "Failed to load dashboard", variant: "destructive" });
+      toast({ 
+        title: "Error", 
+        description: e?.message || "Failed to load dashboard", 
+        variant: "destructive" 
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { fetchData(); /* eslint-disable-next-line */ }, [providerId]);
+  useEffect(() => { 
+    fetchData(); 
+    // eslint-disable-next-line
+  }, [providerId]);
 
   const total = bookings.length;
   const completed = bookings.filter((b) => b.status === "COMPLETED").length;
   const avgRating = 4.8; // hook provider reviews aggregation later
 
   return (
-    <DashboardLayout title="Provider Dashboard" menuItems={menuItems} currentPath={location.pathname}>
+    <DashboardLayout 
+      title="Provider Dashboard" 
+      menuItems={menuItems} 
+      currentPath={location.pathname}
+      userType="PROVIDER"
+    >
       <div className="space-y-6">
         <div className="animate-fade-in">
           <h1 className="text-3xl font-bold text-foreground mb-2">
@@ -85,9 +108,24 @@ export default function ProfileDashboard() {
 
         {/* Stats */}
         <div className="grid sm:grid-cols-3 gap-4">
-          <Card><CardContent className="pt-6 text-center"><p className="text-3xl font-bold text-primary">{loading ? "-" : total}</p><p className="text-sm text-muted-foreground">Total Bookings</p></CardContent></Card>
-          <Card><CardContent className="pt-6 text-center"><p className="text-3xl font-bold text-accent">{loading ? "-" : completed}</p><p className="text-sm text-muted-foreground">Completed</p></CardContent></Card>
-          <Card><CardContent className="pt-6 text-center"><p className="text-3xl font-bold text-foreground">{avgRating}</p><p className="text-sm text-muted-foreground">Average Rating</p></CardContent></Card>
+          <Card>
+            <CardContent className="pt-6 text-center">
+              <p className="text-3xl font-bold text-primary">{loading ? "-" : total}</p>
+              <p className="text-sm text-muted-foreground">Total Bookings</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6 text-center">
+              <p className="text-3xl font-bold text-accent">{loading ? "-" : completed}</p>
+              <p className="text-sm text-muted-foreground">Completed</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6 text-center">
+              <p className="text-3xl font-bold text-foreground">{avgRating}</p>
+              <p className="text-sm text-muted-foreground">Average Rating</p>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Provider profile quick info */}
@@ -113,7 +151,9 @@ export default function ProfileDashboard() {
                 </div>
               </div>
             ) : (
-              <p className="text-muted-foreground">{loading ? "Loading profile..." : "Profile not found."}</p>
+              <p className="text-muted-foreground">
+                {loading ? "Loading profile..." : "Profile not found."}
+              </p>
             )}
           </CardContent>
         </Card>

@@ -7,7 +7,6 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
 
 import java.util.Arrays;
-import java.util.List;
 
 @Configuration
 public class CorsConfig {
@@ -17,11 +16,21 @@ public class CorsConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         CorsConfiguration config = new CorsConfiguration();
         
-        // ✅ FIX: Use allowedOriginPatterns instead of allowedOrigins with wildcard
-        config.setAllowCredentials(false);  // Set to false when using *
-        config.setAllowedOriginPatterns(Arrays.asList("*"));  // Use patterns instead
+        // Allow all origins with patterns
+        config.setAllowCredentials(false);
+        config.setAllowedOriginPatterns(Arrays.asList("*"));
         config.setAllowedHeaders(Arrays.asList("*"));
-        config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        
+        // ✅ IMPORTANT: Added PATCH method for notifications
+        config.setAllowedMethods(Arrays.asList(
+            "GET", 
+            "POST", 
+            "PUT", 
+            "PATCH",    // ← Added this
+            "DELETE", 
+            "OPTIONS"
+        ));
+        
         config.setMaxAge(3600L);
         
         source.registerCorsConfiguration("/**", config);

@@ -24,8 +24,14 @@ export default function ProviderReviews() {
   const { toast } = useToast();
 
   const session: Session | null = useMemo(() => {
-    try { const raw = localStorage.getItem("userData"); return raw ? JSON.parse(raw) : null; } catch { return null; }
+    try { 
+      const raw = localStorage.getItem("userData"); 
+      return raw ? JSON.parse(raw) : null; 
+    } catch { 
+      return null; 
+    }
   }, []);
+  
   const providerId = session?.id;
 
   const menuItems = [
@@ -49,38 +55,84 @@ export default function ProviderReviews() {
       if (!res.ok) throw new Error(`Failed to load (status ${res.status})`);
       setReviews(await res.json());
     } catch (e: any) {
-      toast({ title: "Error", description: e?.message || "Failed to load reviews", variant: "destructive" });
+      toast({ 
+        title: "Error", 
+        description: e?.message || "Failed to load reviews", 
+        variant: "destructive" 
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [providerId]);
+  useEffect(() => { 
+    load(); 
+    // eslint-disable-next-line
+  }, [providerId]);
+
+  const avgRating = reviews.length > 0 
+    ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)
+    : "0.0";
 
   return (
-    <DashboardLayout title="Provider Dashboard" menuItems={menuItems} currentPath={location.pathname}>
+    <DashboardLayout 
+      title="Provider Dashboard" 
+      menuItems={menuItems} 
+      currentPath={location.pathname}
+      userType="PROVIDER"
+    >
       <Card>
-        <CardHeader><CardTitle>Reviews</CardTitle></CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle>Reviews</CardTitle>
+          {reviews.length > 0 && (
+            <div className="flex items-center gap-2">
+              <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
+              <span className="text-2xl font-bold">{avgRating}</span>
+              <span className="text-sm text-muted-foreground">({reviews.length} reviews)</span>
+            </div>
+          )}
+        </CardHeader>
         <CardContent>
           {loading ? (
             <div className="text-center py-8">Loading…</div>
           ) : reviews.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">No reviews yet.</div>
+            <div className="text-center py-12 text-muted-foreground">
+              No reviews yet. Complete some bookings to receive reviews!
+            </div>
           ) : (
             <div className="space-y-4">
               {reviews.map((r) => (
-                <div key={r.reviewId} className="p-4 border rounded-lg">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
+                <div key={r.reviewId} className="p-4 border rounded-lg hover:shadow-md transition-shadow">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-1">
                       {Array.from({ length: 5 }).map((_, i) => (
-                        <Star key={i} className={`h-4 w-4 ${i < r.rating ? "fill-accent text-accent" : "text-muted-foreground"}`} />
+                        <Star 
+                          key={i} 
+                          className={`h-4 w-4 ${
+                            i < r.rating 
+                              ? "fill-yellow-400 text-yellow-400" 
+                              : "text-gray-300"
+                          }`} 
+                        />
                       ))}
+                      <span className="ml-2 text-sm font-semibold">{r.rating}/5</span>
                     </div>
                     <span className="text-xs text-muted-foreground">
-                      {r.createdAt ? new Date(r.createdAt).toLocaleDateString() : ""}
+                      {r.createdAt ? new Date(r.createdAt).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric'
+                      }) : ""}
                     </span>
                   </div>
-                  {r.comment && <p className="text-sm mt-2">{r.comment}</p>}
+                  {r.comment && (
+                    <p className="text-sm text-foreground mt-2 leading-relaxed">
+                      "{r.comment}"
+                    </p>
+                  )}
+                  <p className="text-xs text-muted-foreground mt-2">
+                    User ID: {r.userId} • Booking ID: {r.bookingId}
+                  </p>
                 </div>
               ))}
             </div>

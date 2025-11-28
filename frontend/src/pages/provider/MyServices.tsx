@@ -20,16 +20,25 @@ type Provider = {
   location?: string;
 };
 
-type Session = { id: number; role: "SERVICE_PROVIDER" | "USER" | "ADMIN" };
+type Session = { 
+  id: number; 
+  role: "SERVICE_PROVIDER" | "USER" | "ADMIN"; 
+  fullName?: string 
+};
 
 const BACKEND_BASE = import.meta.env.VITE_API_BASE?.toString() || "http://localhost:8080";
 
 export default function MyServices() {
-  const { toast } = useToast();
   const location = useLocation();
+  const { toast } = useToast();
 
   const session: Session | null = useMemo(() => {
-    try { const raw = localStorage.getItem("userData"); return raw ? JSON.parse(raw) : null; } catch { return null; }
+    try {
+      const raw = localStorage.getItem("userData");
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
   }, []);
 
   const providerId = session?.id;
@@ -41,104 +50,197 @@ export default function MyServices() {
     { label: "Reviews", icon: <Star className="h-5 w-5" />, path: "/provider-dashboard/reviews" },
   ];
 
-  const [form, setForm] = useState<Provider | null>(null);
-  const [saving, setSaving] = useState(false);
+  const [provider, setProvider] = useState<Provider | null>(null);
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  const loadProfile = async () => {
+  const [formData, setFormData] = useState({
+    fullName: "",
+    email: "",
+    mobile: "",
+    serviceType: "",
+    experience: "",
+    price: "",
+    availability: "",
+    location: "",
+  });
+
+  const fetchProvider = async () => {
     try {
-      if (!providerId) return;
+      if (!providerId || session?.role !== "SERVICE_PROVIDER") return;
       setLoading(true);
-      const res = await fetch(`${BACKEND_BASE}/api/provider/profile/${providerId}`, { 
-        headers: { Accept: "application/json" }, 
-        mode: "cors" 
+
+      const res = await fetch(`${BACKEND_BASE}/api/provider/profile/${providerId}`, {
+        headers: { Accept: "application/json" },
+        mode: "cors",
       });
+
       if (res.ok) {
-        setForm(await res.json());
-      } else {
-        toast({ title: "Error", description: "Failed to load profile", variant: "destructive" });
+        const data = await res.json();
+        setProvider(data);
+        setFormData({
+          fullName: data.fullName || "",
+          email: data.email || "",
+          mobile: data.mobile || "",
+          serviceType: data.serviceType || "",
+          experience: data.experience?.toString() || "",
+          price: data.price?.toString() || "",
+          availability: data.availability || "",
+          location: data.location || "",
+        });
       }
     } catch (e: any) {
-      toast({ title: "Error", description: e?.message || "Failed to load profile", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: e?.message || "Failed to load profile",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  const saveProfile = async () => {
+  const handleSave = async () => {
     try {
-      if (!providerId || !form) return;
+      if (!providerId) return;
       setSaving(true);
+
       const res = await fetch(`${BACKEND_BASE}/api/provider/profile/${providerId}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
         mode: "cors",
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          ...formData,
+          experience: parseInt(formData.experience) || 0,
+          price: parseFloat(formData.price) || 0,
+        }),
       });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.message || "Failed to save");
+
+      if (res.ok) {
+        toast({
+          title: "Success",
+          description: "Service details updated successfully",
+        });
+        fetchProvider();
+      } else {
+        throw new Error("Failed to update profile");
       }
-      setForm(await res.json());
-      toast({ title: "Saved", description: "Profile updated successfully" });
     } catch (e: any) {
-      toast({ title: "Error", description: e?.message || "Failed to save profile", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: e?.message || "Failed to save changes",
+        variant: "destructive",
+      });
     } finally {
       setSaving(false);
     }
   };
 
-  useEffect(() => { loadProfile(); /* eslint-disable-next-line */ }, [providerId]);
+  useEffect(() => {
+    fetchProvider();
+    // eslint-disable-next-line
+  }, [providerId]);
 
   return (
-    <DashboardLayout title="Provider Dashboard" menuItems={menuItems} currentPath={location.pathname}>
+    <DashboardLayout
+      title="Provider Dashboard"
+      menuItems={menuItems}
+      currentPath={location.pathname}
+      userType="PROVIDER"
+    >
       <Card>
-        <CardHeader><CardTitle>My Services</CardTitle></CardHeader>
-        <CardContent className="space-y-4">
+        <CardHeader>
+          <CardTitle>My Services</CardTitle>
+        </CardHeader>
+        <CardContent>
           {loading ? (
-            <p className="text-muted-foreground text-center py-8">Loading…</p>
-          ) : !form ? (
-            <p className="text-muted-foreground text-center py-8">Profile not found</p>
+            <div className="text-center py-8">Loading...</div>
           ) : (
-            <>
-              <div className="grid sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Full Name</Label>
-                  <Input value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Email</Label>
-                  <Input type="email" value={form.email || ""} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Mobile</Label>
-                  <Input value={form.mobile || ""} onChange={(e) => setForm({ ...form, mobile: e.target.value })} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Service Type</Label>
-                  <Input value={form.serviceType || ""} onChange={(e) => setForm({ ...form, serviceType: e.target.value })} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Experience (years)</Label>
-                  <Input type="number" value={form.experience ?? 0} onChange={(e) => setForm({ ...form, experience: Number(e.target.value) })} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Price</Label>
-                  <Input value={String(form.price ?? "")} onChange={(e) => setForm({ ...form, price: e.target.value })} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Availability</Label>
-                  <Input value={form.availability || ""} onChange={(e) => setForm({ ...form, availability: e.target.value })} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Location</Label>
-                  <Input value={form.location || ""} onChange={(e) => setForm({ ...form, location: e.target.value })} />
-                </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="fullName">Full Name</Label>
+                <Input
+                  id="fullName"
+                  value={formData.fullName}
+                  onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                />
               </div>
-              <Button onClick={saveProfile} disabled={saving}>
-                {saving ? "Saving…" : "Save Changes"}
-              </Button>
-            </>
+
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="mobile">Mobile</Label>
+                <Input
+                  id="mobile"
+                  value={formData.mobile}
+                  onChange={(e) => setFormData({ ...formData, mobile: e.target.value })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="serviceType">Service Type</Label>
+                <Input
+                  id="serviceType"
+                  value={formData.serviceType}
+                  onChange={(e) => setFormData({ ...formData, serviceType: e.target.value })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="experience">Experience (years)</Label>
+                <Input
+                  id="experience"
+                  type="number"
+                  value={formData.experience}
+                  onChange={(e) => setFormData({ ...formData, experience: e.target.value })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="price">Price</Label>
+                <Input
+                  id="price"
+                  type="number"
+                  value={formData.price}
+                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="availability">Availability</Label>
+                <Input
+                  id="availability"
+                  value={formData.availability}
+                  onChange={(e) => setFormData({ ...formData, availability: e.target.value })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="location">Location</Label>
+                <Input
+                  id="location"
+                  value={formData.location}
+                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                />
+              </div>
+
+              <div className="col-span-1 md:col-span-2">
+                <Button onClick={handleSave} disabled={saving} className="w-full md:w-auto">
+                  {saving ? "Saving..." : "Save Changes"}
+                </Button>
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>

@@ -13,7 +13,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/bookings")
-
 public class BookingController {
     
     @Autowired
@@ -34,17 +33,23 @@ public class BookingController {
         return ResponseEntity.ok(bookingService.getProviderBookings(providerId));
     }
     
+    // ✅ FIXED: Added @PatchMapping alongside @PutMapping
     @PutMapping("/{bookingId}/status")
+    @PatchMapping("/{bookingId}/status")  // ← ADD THIS LINE
     public ResponseEntity<Booking> updateStatus(
         @PathVariable Integer bookingId,
         @RequestBody Map<String, String> request
     ) {
+        String status = request.get("status");
+        if (status == null || status.isEmpty()) {
+            return ResponseEntity.badRequest().build();
+        }
+        
         return ResponseEntity.ok(
-            bookingService.updateBookingStatus(bookingId, request.get("status"))
+            bookingService.updateBookingStatus(bookingId, status)
         );
     }
     
-    // ✅ Added: Get all bookings (for admin)
     @GetMapping
     public ResponseEntity<List<Booking>> getAllBookings() {
         return ResponseEntity.ok(bookingService.getAllBookings());
