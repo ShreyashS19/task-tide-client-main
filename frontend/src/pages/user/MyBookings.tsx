@@ -1,8 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Calendar as CalendarIcon, Clock, MapPin, User as UserIcon, DollarSign, CheckCircle, XCircle } from "lucide-react";
+import {
+  Calendar as CalendarIcon,
+  Clock,
+  MapPin,
+  User as UserIcon,
+  DollarSign,
+  CheckCircle,
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 type Booking = {
@@ -10,9 +18,9 @@ type Booking = {
   userId: number;
   providerId: number;
   serviceType: string;
-  bookingDate: string;   // ISO date from backend
-  bookingTime: string;   // HH:mm:ss from backend
-  status: "PENDING" | "ACCEPTED" | "REJECTED" | "COMPLETED" | "CANCELLED";
+  bookingDate: string;
+  bookingTime: string;
+  status: "PENDING" | "ACCEPTED" | "REJECTED" | "COMPLETED" | "PAID" | "CANCELLED";
   createdAt?: string;
 };
 
@@ -28,6 +36,7 @@ const BACKEND_BASE = import.meta.env.VITE_API_BASE?.toString() || "http://localh
 
 const MyBookings = () => {
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const session: LoginSession | null = useMemo(() => {
     try {
@@ -41,22 +50,6 @@ const MyBookings = () => {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const getStatusBadge = (status: Booking["status"]) => {
-    const map: Record<Booking["status"], { variant: "default" | "secondary" | "destructive" | "outline"; icon?: JSX.Element; label: string }> = {
-      PENDING:   { variant: "secondary",  label: "Pending" },
-      ACCEPTED:  { variant: "default",    label: "Accepted",  icon: <CheckCircle className="h-3 w-3 mr-1" /> },
-      REJECTED:  { variant: "destructive",label: "Rejected",  icon: <XCircle className="h-3 w-3 mr-1" /> },
-      COMPLETED: { variant: "outline",    label: "Completed", icon: <CheckCircle className="h-3 w-3 mr-1" /> },
-      CANCELLED: { variant: "destructive",label: "Cancelled", icon: <XCircle className="h-3 w-3 mr-1" /> },
-    };
-    const cfg = map[status];
-    return (
-      <Badge variant={cfg.variant} className="flex items-center w-fit">
-        {cfg.icon}{cfg.label}
-      </Badge>
-    );
-  };
-
   const fetchBookings = async () => {
     try {
       if (!session?.id || session.role !== "USER") {
@@ -67,31 +60,44 @@ const MyBookings = () => {
         });
         return;
       }
+
       setLoading(true);
       const res = await fetch(`${BACKEND_BASE}/api/bookings/user/${session.id}`, {
         method: "GET",
         headers: { Accept: "application/json" },
         mode: "cors",
       });
+
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.message || `Failed to load bookings (status ${res.status})`);
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody.message || `Failed to load bookings with status ${res.status}`);
       }
+
       const data = (await res.json()) as Booking[];
-      setBookings(data || []);
+      setBookings(data);
     } catch (e: any) {
-      toast({ title: "Error", description: e?.message || "Could not load bookings", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: e?.message || "Failed to fetch bookings",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  // Optional local cancel (does not call backend update; add PUT /api/bookings/{id}/status later)
-  const handleCancel = (id: number) => {
-    setBookings((prev) =>
-      prev.map((b) => (b.bookingId === id ? { ...b, status: "CANCELLED" } as Booking : b))
-    );
-    toast({ title: "Booking Cancelled", description: "Your booking has been marked as cancelled." });
+  const handlePayNow = (booking: Booking) => {
+    const paymentData = {
+      bookingId: booking.bookingId,
+      providerId: booking.providerId,
+      service: booking.serviceType,
+      rate: "₹500",
+      date: booking.bookingDate,
+      time: booking.bookingTime,
+    };
+
+    localStorage.setItem('pendingPayment', JSON.stringify(paymentData));
+    navigate('/payment');
   };
 
   useEffect(() => {
@@ -99,28 +105,17 @@ const MyBookings = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const formatDate = (iso: string) => {
-    try {
-      const d = new Date(iso);
-      if (!Number.isNaN(d.getTime())) {
-        return d.toLocaleDateString(undefined, { weekday: "short", year: "numeric", month: "short", day: "numeric" });
-      }
-      return iso;
-    } catch {
-      return iso;
-    }
-  };
-
-  const formatTime = (t: string) => {
-    // Expect HH:mm or HH:mm:ss
-    try {
-      const [hh, mm] = t.split(":");
-      const d = new Date();
-      d.setHours(parseInt(hh, 10), parseInt(mm, 10), 0, 0);
-      return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
-    } catch {
-      return t;
-    }
+  const getStatusBadge = (status: Booking["status"]) => {
+    const variants: Record<Booking["status"], "default" | "secondary" | "destructive" | "outline"> = {
+      PENDING: "secondary",
+      ACCEPTED: "default",
+      REJECTED: "destructive",
+      COMPLETED: "outline",
+      PAID: "default",
+      CANCELLED: "destructive",
+    };
+    const label = status === "PAID" ? "Payment Completed" : status.charAt(0) + status.slice(1).toLowerCase();
+    return <Badge variant={variants[status]}>{label}</Badge>;
   };
 
   return (
@@ -131,71 +126,78 @@ const MyBookings = () => {
       </div>
 
       {loading ? (
-        <Card>
-          <CardContent className="pt-6 text-center py-12">
-            Loading bookings...
-          </CardContent>
-        </Card>
+        <div className="text-center py-12">Loading bookings...</div>
       ) : bookings.length === 0 ? (
         <Card>
-          <CardContent className="pt-6 text-center py-12">
-            <CalendarIcon className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground">No bookings yet</p>
-            <p className="text-sm text-muted-foreground mt-2">Book a service to see your appointments here</p>
+          <CardContent className="py-12 text-center text-muted-foreground">
+            No bookings yet. Book a service to get started!
           </CardContent>
         </Card>
       ) : (
         <div className="space-y-4">
-          {bookings.map((booking) => (
-            <Card key={booking.bookingId} className="hover:shadow-lg transition-all">
-              <CardHeader>
+          {bookings.map((b) => (
+            <Card key={b.bookingId} className="hover:shadow-lg transition-all">
+              <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
-                  <CardTitle className="text-lg">{booking.serviceType}</CardTitle>
-                  {getStatusBadge(booking.status)}
+                  <CardTitle className="text-xl">{b.serviceType}</CardTitle>
+                  {getStatusBadge(b.status)}
                 </div>
               </CardHeader>
               <CardContent>
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div className="space-y-3">
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 text-sm">
                       <UserIcon className="h-4 w-4 text-muted-foreground" />
-                      <div>
-                        <p className="text-xs text-muted-foreground">Provider ID</p>
-                        <p className="text-sm font-medium">{booking.providerId}</p>
-                      </div>
+                      <span className="text-muted-foreground">Provider ID:</span>
+                      <span className="font-medium">{b.providerId}</span>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 text-sm">
                       <MapPin className="h-4 w-4 text-muted-foreground" />
-                      <div>
-                        <p className="text-xs text-muted-foreground">Location</p>
-                        <p className="text-sm font-medium">See provider card</p>
-                      </div>
+                      <span className="text-muted-foreground">Location:</span>
+                      <span className="font-medium">See provider card</span>
                     </div>
                   </div>
                   <div className="space-y-3">
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 text-sm">
                       <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-                      <div>
-                        <p className="text-xs text-muted-foreground">Date</p>
-                        <p className="text-sm font-medium">{formatDate(booking.bookingDate)}</p>
-                      </div>
+                      <span className="text-muted-foreground">Date:</span>
+                      <span className="font-medium">
+                        {new Date(b.bookingDate).toLocaleDateString('en-US', {
+                          weekday: 'short',
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric'
+                        })}
+                      </span>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 text-sm">
                       <Clock className="h-4 w-4 text-muted-foreground" />
-                      <div>
-                        <p className="text-xs text-muted-foreground">Time</p>
-                        <p className="text-sm font-medium">{formatTime(booking.bookingTime)}</p>
-                      </div>
+                      <span className="text-muted-foreground">Time:</span>
+                      <span className="font-medium">{b.bookingTime?.slice(0, 5)} {parseInt(b.bookingTime?.slice(0, 2)) >= 12 ? 'PM' : 'AM'}</span>
                     </div>
                   </div>
                 </div>
 
-                {booking.status === "PENDING" && (
-                  <div className="mt-4 pt-4 border-t border-border">
-                    <Button variant="destructive" size="sm" onClick={() => handleCancel(booking.bookingId)}>
-                      <XCircle className="h-4 w-4 mr-2" />
-                      Cancel Booking
+                {/* Show Pay Now button only for COMPLETED status */}
+                {b.status === "COMPLETED" && (
+                  <div className="mt-4 pt-4 border-t">
+                    <Button
+                      onClick={() => handlePayNow(b)}
+                      className="w-full bg-green-600 hover:bg-green-700"
+                    >
+                      <DollarSign className="h-4 w-4 mr-2" />
+                      Pay Now
                     </Button>
+                  </div>
+                )}
+
+                {/* Show Payment Completed message for PAID status */}
+                {b.status === "PAID" && (
+                  <div className="mt-4 pt-4 border-t">
+                    <div className="flex items-center justify-center gap-2 text-green-600 font-medium p-3 bg-green-50 rounded-lg">
+                      <CheckCircle className="h-5 w-5" />
+                      <span>Payment Completed</span>
+                    </div>
                   </div>
                 )}
               </CardContent>

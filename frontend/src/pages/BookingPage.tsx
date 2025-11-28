@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,9 +12,20 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { X } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+
+const BACKEND_BASE = import.meta.env.VITE_API_BASE?.toString() || "http://localhost:8080";
+
+type LoginSession = {
+  id: number;
+  role: "USER" | "SERVICE_PROVIDER" | "ADMIN";
+  fullName?: string;
+};
 
 export default function BookingPage() {
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(false);
   const [bookingData, setBookingData] = useState({
     service: "",
     rate: "",
@@ -25,7 +36,15 @@ export default function BookingPage() {
     time: "",
   });
 
-  // Load provider data from localStorage on component mount
+  const session: LoginSession | null = useMemo(() => {
+    try {
+      const raw = localStorage.getItem("userData");
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  }, []);
+
   useEffect(() => {
     const savedBooking = localStorage.getItem('pendingBooking');
     if (savedBooking) {
@@ -44,29 +63,89 @@ export default function BookingPage() {
         console.error("Failed to parse booking data:", error);
       }
     } else {
-      // If no booking data, redirect back
       navigate('/user-dashboard/search');
     }
   }, [navigate]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!bookingData.date || !bookingData.time) {
-      alert("Please select both date and time");
+      toast({
+        title: "Error",
+        description: "Please select both date and time",
+        variant: "destructive",
+      });
       return;
     }
 
-    // Update localStorage with date and time
-    const updatedBooking = {
-      ...bookingData,
-      date: bookingData.date,
-      time: bookingData.time,
-    };
-    localStorage.setItem('pendingBooking', JSON.stringify(updatedBooking));
-    
-    // Navigate to payment page
-    navigate('/payment');
+    if (!session?.id || session.role !== "USER") {
+      toast({
+        title: "Not logged in",
+        description: "Please log in as a User to book a service.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      // Format time to HH:mm:ss
+      const time = /^\d{2}:\d{2}$/.test(bookingData.time) 
+        ? `${bookingData.time}:00` 
+        : bookingData.time;
+
+      const payload = {
+        userId: session.id,
+        providerId: bookingData.providerId,
+        serviceType: bookingData.service || "Service",
+        bookingDate: bookingData.date,
+        bookingTime: time,
+      };
+
+      console.log("Creating booking:", payload);
+
+      const res = await fetch(`${BACKEND_BASE}/api/bookings`, {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json", 
+          Accept: "application/json" 
+        },
+        mode: "cors",
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody.message || `Booking failed with status ${res.status}`);
+      }
+
+      const booking = await res.json();
+      
+      console.log("Booking created successfully:", booking);
+
+      // Clear booking data
+      localStorage.removeItem('pendingBooking');
+
+      toast({
+        title: "Booking Successful!",
+        description: `Your booking request has been sent to the provider. Booking ID: ${booking.bookingId}`,
+      });
+
+      // Navigate to My Bookings
+      navigate('/user-dashboard/bookings');
+      
+    } catch (error: any) {
+      console.error('Booking error:', error);
+      toast({
+        title: "Error",
+        description: error.message || 'Booking failed. Please try again.',
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -141,8 +220,12 @@ export default function BookingPage() {
             </div>
 
             <div className="pt-2">
-              <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700">
-                Confirm Booking
+              <Button 
+                type="submit" 
+                className="w-full bg-blue-600 hover:bg-blue-700"
+                disabled={loading}
+              >
+                {loading ? 'Booking...' : 'Confirm Booking'}
               </Button>
             </div>
           </form>

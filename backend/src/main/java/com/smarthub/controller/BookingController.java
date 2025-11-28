@@ -17,29 +17,29 @@ public class BookingController {
     
     @Autowired
     private BookingService bookingService;
-    
+
     @PostMapping
     public ResponseEntity<Booking> createBooking(@Valid @RequestBody BookingRequest request) {
         return ResponseEntity.ok(bookingService.createBooking(request));
     }
-    
+
     @GetMapping("/user/{userId}")
     public ResponseEntity<List<Booking>> getUserBookings(@PathVariable Integer userId) {
         return ResponseEntity.ok(bookingService.getUserBookings(userId));
     }
-    
+
     @GetMapping("/provider/{providerId}")
     public ResponseEntity<List<Booking>> getProviderBookings(@PathVariable Integer providerId) {
         return ResponseEntity.ok(bookingService.getProviderBookings(providerId));
     }
-    
-    // ✅ FIXED: Added @PatchMapping alongside @PutMapping
+
+    // ✅ Support both PUT and PATCH methods
     @PutMapping("/{bookingId}/status")
-    @PatchMapping("/{bookingId}/status")  // ← ADD THIS LINE
+    @PatchMapping("/{bookingId}/status")
     public ResponseEntity<Booking> updateStatus(
-        @PathVariable Integer bookingId,
-        @RequestBody Map<String, String> request
-    ) {
+            @PathVariable Integer bookingId,
+            @RequestBody Map<String, String> request) {
+        
         String status = request.get("status");
         if (status == null || status.isEmpty()) {
             return ResponseEntity.badRequest().build();
@@ -49,7 +49,7 @@ public class BookingController {
             bookingService.updateBookingStatus(bookingId, status)
         );
     }
-    
+
     @GetMapping
     public ResponseEntity<List<Booking>> getAllBookings() {
         return ResponseEntity.ok(bookingService.getAllBookings());
