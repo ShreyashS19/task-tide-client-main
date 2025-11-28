@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,12 +16,38 @@ import { X } from "lucide-react";
 export default function BookingPage() {
   const navigate = useNavigate();
   const [bookingData, setBookingData] = useState({
-    service: "Plumber",
-    rate: "₹500",
-    location: "Pune",
+    service: "",
+    rate: "",
+    location: "",
+    providerName: "",
+    providerId: 0,
     date: "",
     time: "",
   });
+
+  // Load provider data from localStorage on component mount
+  useEffect(() => {
+    const savedBooking = localStorage.getItem('pendingBooking');
+    if (savedBooking) {
+      try {
+        const data = JSON.parse(savedBooking);
+        setBookingData({
+          service: data.service || "Service",
+          rate: data.rate || "₹0",
+          location: data.location || "Not specified",
+          providerName: data.providerName || "Provider",
+          providerId: data.providerId || 0,
+          date: data.date || "",
+          time: data.time || "",
+        });
+      } catch (error) {
+        console.error("Failed to parse booking data:", error);
+      }
+    } else {
+      // If no booking data, redirect back
+      navigate('/user-dashboard/search');
+    }
+  }, [navigate]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,7 +57,15 @@ export default function BookingPage() {
       return;
     }
 
-    localStorage.setItem('pendingBooking', JSON.stringify(bookingData));
+    // Update localStorage with date and time
+    const updatedBooking = {
+      ...bookingData,
+      date: bookingData.date,
+      time: bookingData.time,
+    };
+    localStorage.setItem('pendingBooking', JSON.stringify(updatedBooking));
+    
+    // Navigate to payment page
     navigate('/payment');
   };
 
@@ -48,9 +82,9 @@ export default function BookingPage() {
         </Button>
 
         <CardHeader className="pb-4">
-          <CardTitle className="text-xl">Book Plumber Service</CardTitle>
+          <CardTitle className="text-xl">Book {bookingData.service} Service</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Schedule an appointment with Plumber Pro
+            Schedule an appointment with {bookingData.providerName}
           </p>
         </CardHeader>
 
@@ -59,15 +93,15 @@ export default function BookingPage() {
             <div className="space-y-3">
               <div className="flex justify-between items-center">
                 <Label className="text-sm font-normal">Service:</Label>
-                <span className="font-medium">Plumber</span>
+                <span className="font-medium">{bookingData.service}</span>
               </div>
               <div className="flex justify-between items-center">
                 <Label className="text-sm font-normal">Rate:</Label>
-                <span className="font-medium">₹500</span>
+                <span className="font-medium">{bookingData.rate}</span>
               </div>
               <div className="flex justify-between items-center">
                 <Label className="text-sm font-normal">Location:</Label>
-                <span className="font-medium">Pune</span>
+                <span className="font-medium">{bookingData.location}</span>
               </div>
             </div>
 
@@ -78,6 +112,7 @@ export default function BookingPage() {
                 type="date"
                 value={bookingData.date}
                 onChange={(e) => setBookingData({ ...bookingData, date: e.target.value })}
+                min={new Date().toISOString().split("T")[0]}
                 className="w-full"
                 required
               />

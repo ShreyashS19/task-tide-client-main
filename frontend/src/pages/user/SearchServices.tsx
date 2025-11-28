@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Search as SearchIcon, MapPin, Star, Clock, DollarSign, Calendar as CalendarIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -32,6 +32,7 @@ const BACKEND_BASE = import.meta.env.VITE_API_BASE?.toString() || "http://localh
 
 const SearchServices = () => {
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   // Filters
   const [serviceType, setServiceType] = useState("");
@@ -40,11 +41,6 @@ const SearchServices = () => {
   // Data
   const [providers, setProviders] = useState<Provider[]>([]);
   const [loading, setLoading] = useState(false);
-
-  // Booking state
-  const [selectedProviderId, setSelectedProviderId] = useState<number | null>(null);
-  const [selectedDate, setSelectedDate] = useState("");
-  const [selectedTime, setSelectedTime] = useState("");
 
   // Session
   const session: LoginSession | null = useMemo(() => {
@@ -55,11 +51,6 @@ const SearchServices = () => {
       return null;
     }
   }, []);
-
-  const selectedProvider = useMemo(
-    () => providers.find((p) => p.providerId === selectedProviderId) || null,
-    [selectedProviderId, providers]
-  );
 
   const autoDetectLocation = () => {
     if (!navigator.geolocation) {
@@ -134,69 +125,32 @@ const SearchServices = () => {
     await fetchProviders();
   };
 
-  const handleBooking = async () => {
-    try {
-      if (!session?.id || session.role !== "USER") {
-        toast({
-          title: "Not logged in",
-          description: "Please log in as a User to book a service.",
-          variant: "destructive",
-        });
-        return;
-      }
-      if (!selectedProvider) {
-        toast({ title: "Error", description: "No provider selected", variant: "destructive" });
-        return;
-      }
-      if (!selectedDate || !selectedTime) {
-        toast({
-          title: "Error",
-          description: "Please select both date and time",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Format time to HH:mm:ss if user picked HH:mm
-      const time = /^\d{2}:\d{2}$/.test(selectedTime) ? `${selectedTime}:00` : selectedTime;
-
-      const payload = {
-        userId: session.id,
-        providerId: selectedProvider.providerId,
-        serviceType: selectedProvider.serviceType || serviceType || "Service",
-        bookingDate: selectedDate, // yyyy-MM-dd
-        bookingTime: time, // HH:mm:ss
-      };
-
-      const res = await fetch(`${BACKEND_BASE}/api/bookings`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        mode: "cors",
-        body: JSON.stringify(payload),
-      });
-
-      if (!res.ok) {
-        const errBody = await res.json().catch(() => ({}));
-        throw new Error(errBody.message || `Booking failed with status ${res.status}`);
-      }
-
-      await res.json(); // booking object (unused here)
+  const handleBookNow = (provider: Provider) => {
+    // Check if user is logged in
+    if (!session?.id || session.role !== "USER") {
       toast({
-        title: "Success!",
-        description: `Booking created with ${selectedProvider.fullName}`,
-      });
-
-      // Reset dialog state
-      setSelectedDate("");
-      setSelectedTime("");
-      setSelectedProviderId(null);
-    } catch (e: any) {
-      toast({
-        title: "Error",
-        description: e?.message || "Failed to create booking",
+        title: "Not logged in",
+        description: "Please log in as a User to book a service.",
         variant: "destructive",
       });
+      return;
     }
+
+    // Store provider info and booking data in localStorage
+    const bookingData = {
+      providerId: provider.providerId,
+      service: provider.serviceType,
+      rate: typeof provider.price === "number" ? `₹${provider.price}` : (provider.price || "₹0"),
+      location: provider.location || "Not specified",
+      providerName: provider.fullName,
+      date: "",
+      time: "",
+    };
+
+    localStorage.setItem('pendingBooking', JSON.stringify(bookingData));
+    
+    // Navigate to the booking page
+    navigate('/booking');
   };
 
   // Optional: auto-load providers once
@@ -273,7 +227,7 @@ const SearchServices = () => {
                     </div>
                     <div className="flex items-center gap-1 bg-accent/10 px-2 py-1 rounded">
                       <Star className="h-4 w-4 text-accent fill-accent" />
-                      <span className="text-sm font-medium">{/* rating placeholder */}4.5</span>
+                      <span className="text-sm font-medium">4.5</span>
                     </div>
                   </div>
 
@@ -299,76 +253,13 @@ const SearchServices = () => {
                     </div>
                   </div>
 
-                  <Dialog
-                    open={selectedProviderId === provider.providerId}
-                    onOpenChange={(open) => !open && setSelectedProviderId(null)}
+                  <Button
+                    className="w-full"
+                    onClick={() => handleBookNow(provider)}
                   >
-                    <DialogTrigger asChild>
-                      <Button
-                        className="w-full"
-                        onClick={() => setSelectedProviderId(provider.providerId)}
-                      >
-                        <CalendarIcon className="h-4 w-4 mr-2" />
-                        Book Now
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Book {provider.serviceType} Service</DialogTitle>
-                        <DialogDescription>Schedule an appointment with {provider.fullName}</DialogDescription>
-                      </DialogHeader>
-
-                      <div className="space-y-4">
-                        <div className="p-4 bg-muted/50 rounded-lg space-y-2">
-                          <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">Service:</span>
-                            <span className="font-medium">{provider.serviceType}</span>
-                          </div>
-                          <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">Rate:</span>
-                            <span className="font-medium">
-                              {typeof provider.price === "number" ? `₹${provider.price}` : provider.price ?? "₹0"}
-                            </span>
-                          </div>
-                          <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">Location:</span>
-                            <span className="font-medium">{provider.location || "-"}</span>
-                          </div>
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label>Select Date</Label>
-                          <Input
-                            type="date"
-                            value={selectedDate}
-                            onChange={(e) => setSelectedDate(e.target.value)}
-                            min={new Date().toISOString().split("T")[0]}
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label>Select Time</Label>
-                          <Select value={selectedTime} onValueChange={setSelectedTime}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Choose time slot" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="09:00">09:00 AM</SelectItem>
-                              <SelectItem value="10:00">10:00 AM</SelectItem>
-                              <SelectItem value="11:00">11:00 AM</SelectItem>
-                              <SelectItem value="14:00">02:00 PM</SelectItem>
-                              <SelectItem value="15:00">03:00 PM</SelectItem>
-                              <SelectItem value="16:00">04:00 PM</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <Button className="w-full" onClick={handleBooking}>
-                          Confirm Booking
-                        </Button>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
+                    <CalendarIcon className="h-4 w-4 mr-2" />
+                    Book Now
+                  </Button>
                 </div>
               </CardContent>
             </Card>
